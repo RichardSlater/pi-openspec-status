@@ -4,11 +4,7 @@ A [pi](https://pi.dev) coding agent extension that displays the active OpenSpec 
 
 ## Features
 
-- **All active changes** — Shows every change under `openspec/changes/` (one line each)
-- **Artifact completion** — Displays check/circle icons for `proposal`, `design`, `tasks`, and `specs/` artifacts with a file count
-- **Task counter** — Shows completed/total tasks per change
-- **Footer status** — Aggregate task progress when multiple changes are active
-- **Auto-refresh** — Updates on session start, after each LLM turn, when the agent finishes, and immediately when edit/write tools touch files under `openspec/changes/`
+- TODO
 
 ## Install
 
@@ -36,27 +32,7 @@ Once installed, the widget appears automatically when you're in a project that h
 
 ### Display
 
-When no active changes are detected:
-```
-○ OpenSpec: No active change
-```
-
-When changes are active:
-```
-■ OpenSpec
-  feat-auth    ✓proposal ✓design ○tasks ✓specs(3)  3/5 tasks
-  fix-login    ✓proposal ○design ○tasks ○specs(1)  1/8 tasks
-```
-
-Footer status (single change):
-```
-○ feat-auth 3/5
-```
-
-Footer status (multiple changes):
-```
-○ 2 changes · 4/13 tasks
-```
+TODO
 
 ## Development
 

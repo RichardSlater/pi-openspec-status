@@ -1,33 +1,35 @@
 /**
- * Type definitions for the OpenSpec Status extension.
+ * Shared type definitions for the OpenSpec Status Widget extension.
  */
 
-export interface TaskCounts {
-	total: number;
-	complete: number;
+/** Represents an artifact in an OpenSpec change */
+export interface ArtifactStatus {
+	id: string;
+	status: "done" | "ready" | "blocked";
 }
 
-export interface ArtifactMap {
-	[k: string]: "pending" | "done";
+/** Summary of a change from `openspec list --json` */
+export interface ChangeSummary {
+	name: string;
+	completedTasks: number;
+	totalTasks: number;
+	lastModified: string;
+	status: string;
 }
 
-export interface OpenSpecState {
-	/** Active changes found under openspec/changes/ (excluding archive/) */
-	changes: Array<{
-		name: string;
-		schema: string;
-		artifacts: ArtifactMap;
-		tasks: TaskCounts;
-		/** Number of files in the specs/ directory (0 if absent or empty). */
-		specCount: number;
-	}>;
+/** Detailed change info from `openspec status --json --change <name>` */
+export interface ChangeDetail {
+	changeName: string;
+	schemaName: string;
+	isComplete: boolean;
+	applyRequires: string[];
+	artifacts: ArtifactStatus[];
 }
 
-/** Names of file-based artifacts we scan for under a change directory. */
-export const ARTIFACT_NAMES = ["proposal", "design", "tasks"] as const;
-
-/** Identifier used for TUI widget and status. */
-export const WIDGET_ID = "openspec-status";
-
-/** Debounce interval for state refresh (ms). */
-export const DEBOUNCE_MS = 500;
+/** The overall widget state managed by the extension */
+export interface WidgetState {
+	changes: ChangeSummary[];
+	details: Map<string, ChangeDetail>;
+	error: string | null;
+	lastRefresh: number;
+}
