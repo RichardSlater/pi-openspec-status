@@ -12,6 +12,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { WidgetState } from "./types.ts";
 import { fetchActiveChanges, checkCliAvailable } from "./openspec.ts";
 import { renderWidget } from "./widget.ts";
+import { registerInteractionShortcut } from "./interaction.ts";
 
 /**
  * Create a debounced version of a function.
@@ -191,6 +192,14 @@ export default function (pi: ExtensionAPI) {
 			cachedLines = lines;
 			cachedWidth = width;
 		} else {
+			// Show loading state immediately while fetching
+			const theme = ctx.ui.theme;
+			const width = getTerminalWidth();
+			const loadingLines = [theme.fg("muted", "OpenSpec: Loading...")];
+			ctx.ui.setWidget("openspec", loadingLines);
+			cachedLines = loadingLines;
+			cachedWidth = width;
+
 			// Initial data fetch
 			await refresh(ctx);
 		}
@@ -237,4 +246,7 @@ export default function (pi: ExtensionAPI) {
 			debouncedRefresh(ctx);
 		}
 	});
+
+	// Register interaction shortcut (ctrl+alt+o)
+	registerInteractionShortcut(pi);
 }
