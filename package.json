@@ -31,6 +31,7 @@
   "pi": {
     "extensions": [
       "./extension/index.ts"
-    ]
+    ],
+    "image": "https://raw.githubusercontent.com/mattoopie/pi-openspec-status/main/assets/overlay.png"
   }
 }
