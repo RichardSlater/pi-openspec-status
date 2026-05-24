@@ -1,5 +1,8 @@
 # pi-openspec-status
 
+[![Publish workflow](https://github.com/mattoopie/pi-openspec-status/actions/workflows/publish.yml/badge.svg)](https://github.com/mattoopie/pi-openspec-status/actions/workflows/publish.yml)
+[![npm version](https://img.shields.io/npm/v/pi-openspec-status.svg)](https://www.npmjs.com/package/pi-openspec-status)
+
 A [pi](https://pi.dev) coding agent extension that displays the active OpenSpec change status as a persistent TUI widget above the editor, with an interactive dialog for detailed views.
 
 ## Features
@@ -18,13 +21,13 @@ A [pi](https://pi.dev) coding agent extension that displays the active OpenSpec 
 ### From npm (recommended)
 
 ```bash
-pi install npm:@mattoopie/pi-openspec-status
+pi install npm:pi-openspec-status
 ```
 
 Or with a specific version:
 
 ```bash
-pi install npm:@mattoopie/pi-openspec-status@0.3.1
+pi install npm:pi-openspec-status@0.3.1
 ```
 
 ### From GitHub
