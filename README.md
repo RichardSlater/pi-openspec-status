@@ -15,6 +15,14 @@ A [pi](https://pi.dev) coding agent extension that displays the active OpenSpec 
 - **Automatic data refresh** — fetches from the `openspec` CLI on session start, after each agent turn/end (debounced 500ms), when tools write to `openspec/` or bash commands reference openspec, plus a fallback refresh every 30 seconds
 - **Error resilience** — gracefully shows "CLI not found" when openspec is unavailable, silently no-ops when not in an OpenSpec project, and retains last-known state with a muted error indicator on CLI failures
 
+## Screenshots
+
+![Widget screenshot](https://raw.githubusercontent.com/mattoopie/pi-openspec-status/main/assets/widget.png)
+*Widget showing a single active change with artifact status and task progress*
+
+![Overlay dialog screenshot](https://raw.githubusercontent.com/mattoopie/pi-openspec-status/main/assets/overlay.png)
+*Interactive overlay dialog showing detailed change breakdown and dependencies*
+
 ## Install
 
 ### From npm (recommended)
