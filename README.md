@@ -24,7 +24,7 @@ pi install npm:@mattoopie/pi-openspec-status
 Or with a specific version:
 
 ```bash
-pi install npm:@mattoopie/pi-openspec-status@0.3.0
+pi install npm:@mattoopie/pi-openspec-status@0.3.1
 ```
 
 ### From GitHub
@@ -36,7 +36,7 @@ pi install git:github.com/mattoopie/pi-openspec-status
 Or with a specific version:
 
 ```bash
-pi install git:github.com/mattoopie/pi-openspec-status@v0.3.0
+pi install git:github.com/mattoopie/pi-openspec-status@v0.3.1
 ```
 
 ## Usage
