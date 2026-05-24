@@ -9,52 +9,11 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import type { WidgetState } from "./types.ts";
+import type { WidgetState, TaskGroup } from "./types.ts";
 import { fetchActiveChanges, checkCliAvailable } from "./openspec.ts";
 import { renderWidget } from "./widget.ts";
 import { registerInteractionShortcut } from "./interaction.ts";
-
-/**
- * Create a debounced version of a function.
- * The debounced function is called after `delay` ms of inactivity.
- */
-function debounce<T extends (...args: unknown[]) => void>(
-	fn: T,
-	delay: number,
-): { (...args: Parameters<T>): void; cancel(): void; flush(): void } {
-	let timer: ReturnType<typeof setTimeout> | null = null;
-	let lastArgs: Parameters<T> | null = null;
-
-	const debounced = (...args: Parameters<T>) => {
-		lastArgs = args;
-		if (timer) clearTimeout(timer);
-		timer = setTimeout(() => {
-			timer = null;
-			lastArgs = null;
-			fn(...args);
-		}, delay);
-	};
-
-	debounced.cancel = () => {
-		if (timer) {
-			clearTimeout(timer);
-			timer = null;
-			lastArgs = null;
-		}
-	};
-
-	debounced.flush = () => {
-		if (timer) {
-			clearTimeout(timer);
-			timer = null;
-			const args = lastArgs;
-			lastArgs = null;
-			if (args) fn(...args);
-		}
-	};
-
-	return debounced;
-}
+import { debounce, arraysEqual } from "./utils.ts";
 
 export default function (pi: ExtensionAPI) {
 	// ── State ──────────────────────────────────────────────────────────
@@ -63,6 +22,7 @@ export default function (pi: ExtensionAPI) {
 	let state: WidgetState = {
 		changes: [],
 		details: new Map(),
+		taskGroups: new Map(),
 		error: null,
 		lastRefresh: 0,
 	};
@@ -99,12 +59,13 @@ export default function (pi: ExtensionAPI) {
 			return;
 		}
 
-		const { changes, details, error } = await fetchActiveChanges(pi);
+		const { changes, details, taskGroups, error } = await fetchActiveChanges(pi);
 
 		// Update state
 		state = {
 			changes,
 			details,
+			taskGroups,
 			error,
 			lastRefresh: Date.now(),
 		};
@@ -132,17 +93,6 @@ export default function (pi: ExtensionAPI) {
 		cachedLines = newLines;
 		cachedWidth = width;
 		ctx.ui.setWidget("openspec", newLines);
-	}
-
-	/**
-	 * Check if two string arrays are equal.
-	 */
-	function arraysEqual(a: string[], b: string[]): boolean {
-		if (a.length !== b.length) return false;
-		for (let i = 0; i < a.length; i++) {
-			if (a[i] !== b[i]) return false;
-		}
-		return true;
 	}
 
 	// ── Debounced refresh (500ms shared) ──────────────────────────────
