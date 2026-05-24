@@ -66,5 +66,5 @@ export function renderArtifactPart(theme: Theme, detail: ChangeDetail, useFullNa
 			const icon = artifactIcon(theme, a.status as "done" | "ready" | "blocked");
 			return `${label} ${icon}`;
 		})
-		.join(" ");
+		.join("   ");
 }
