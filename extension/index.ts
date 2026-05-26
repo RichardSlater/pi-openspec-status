@@ -34,6 +34,18 @@ export default function (pi: ExtensionAPI) {
 	// Interval handle for 30s fallback refresh
 	let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
+	// ── Stale-ctx guards ──────────────────────────────────────────────
+	// sessionGeneration: monotonic counter; bumped on every session_start.
+	// Old async work compares its captured `gen` against this to detect
+	// session replacement — the counter only goes up, never resets.
+	//
+	// isShutdown: set true in session_shutdown, cleared in session_start.
+	// Handles the cross-instance case when pi re-imports the module:
+	// the old instance's session_shutdown flips this, and the old IIFE
+	// sees it before the new instance's session_start clears it.
+	let sessionGeneration = 0;
+	let isShutdown = false;
+
 	/**
 	 * Get available terminal width.
 	 */
@@ -44,7 +56,7 @@ export default function (pi: ExtensionAPI) {
 	/**
 	 * Fetch active changes and update the widget.
 	 */
-	async function refresh(ctx: import("@earendil-works/pi-coding-agent").ExtensionContext): Promise<void> {
+	async function refresh(ctx: import("@earendil-works/pi-coding-agent").ExtensionContext, gen?: number): Promise<void> {
 		if (!ctx.hasUI) return;
 		if (!cliAvailable) {
 			// Show CLI not found message once
@@ -60,6 +72,11 @@ export default function (pi: ExtensionAPI) {
 		}
 
 		const { changes, details, taskGroups, error } = await fetchActiveChanges(pi);
+		// Bail if the session was replaced while awaiting the CLI data.
+		// `gen` is passed by callers from session_start's async IIFE /
+		// interval. Event handlers (turn_end, etc.) pass no gen since
+		// their ctx is always fresh.
+		if (gen !== undefined && (isShutdown || sessionGeneration !== gen)) return;
 
 		// Update state
 		state = {
@@ -128,6 +145,12 @@ export default function (pi: ExtensionAPI) {
 	pi.on("session_start", async (_event, ctx) => {
 		if (!ctx.hasUI) return;
 
+		// Reset shutdown flag and bump the generation counter.
+		// Old async work that captured a lower gen value will see
+		// sessionGeneration !== gen and bail out after each await.
+		isShutdown = false;
+		const gen = ++sessionGeneration;
+
 		// Show loading state immediately so navigation is not blocked
 		const theme = ctx.ui.theme;
 		const width = getTerminalWidth();
@@ -141,7 +164,9 @@ export default function (pi: ExtensionAPI) {
 			clearInterval(refreshInterval);
 		}
 		refreshInterval = setInterval(() => {
-			refresh(ctx).catch((err) => {
+			// Bail if the session was replaced since this interval started.
+			if (isShutdown || sessionGeneration !== gen) return;
+			refresh(ctx, gen).catch((err) => {
 				console.error("OpenSpec widget interval refresh error:", err);
 			});
 		}, 30000);
@@ -150,11 +175,15 @@ export default function (pi: ExtensionAPI) {
 		// navigate to the session immediately without waiting for results.
 		(async () => {
 			const cliResult = await checkCliAvailable(pi);
+			// Bail if the session was replaced while awaiting the CLI check
+			if (isShutdown || sessionGeneration !== gen) return;
+
 			cliAvailable = cliResult.available;
 			cliChecked = true;
 
 			if (!cliAvailable) {
 				// Show "CLI not found" message
+				if (isShutdown || sessionGeneration !== gen) return;
 				const th = ctx.ui.theme;
 				const w = getTerminalWidth();
 				const lines = [th.fg("warning", "OpenSpec CLI not found")];
@@ -164,7 +193,7 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			await refresh(ctx);
+			await refresh(ctx, gen);
 		})().catch((err) => {
 			console.error("OpenSpec widget startup error:", err);
 		});
@@ -177,6 +206,11 @@ export default function (pi: ExtensionAPI) {
 			refreshInterval = null;
 		}
 		debouncedRefresh.cancel();
+		// Signal to any in-progress async work that this session is done.
+		// For same-closure session replacements (e.g. /reload), the next
+		// session_start clears this. For cross-instance replacements, the
+		// old IIFE sees this before the new instance clears it.
+		isShutdown = true;
 	});
 
 	// turn_end: debounced refresh
