@@ -53,10 +53,16 @@ export function registerInteractionShortcut(pi: ExtensionAPI): void {
 
 			const { changes, details, taskGroups, error } = fetchResult;
 
+			// Detect verify command availability via pi.getCommands()
+			const commands = pi.getCommands();
+			const hasVerify = commands.some(
+				(c) => c.source === "skill" && c.name.includes("openspec-verify"),
+			);
+
 			// Open the change list overlay
 			const actionResult = await ctx.ui.custom<OverlayAction | null>(
 				(_tui, theme, _kb, done) => {
-					const overlay = new OpenSpecOverlay(changes, details, taskGroups, theme, (action) => done(action), error);
+					const overlay = new OpenSpecOverlay(changes, details, taskGroups, theme, (action) => done(action), error, hasVerify);
 					return {
 						render: (w) => overlay.render(w),
 						handleInput: (data) => {
@@ -81,6 +87,9 @@ export function registerInteractionShortcut(pi: ExtensionAPI): void {
 					break;
 				case "archive":
 					ctx.ui.setEditorText(`/opsx-archive ${actionResult.changeName}`);
+					break;
+				case "verify":
+					ctx.ui.setEditorText(`/opsx-verify ${actionResult.changeName}`);
 					break;
 				case "propose":
 					ctx.ui.setEditorText("/opsx-propose ");

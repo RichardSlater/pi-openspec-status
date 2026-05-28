@@ -46,6 +46,7 @@ export interface WidgetState {
 /** Action dispatched from the interactive overlay to the shortcut handler */
 export type OverlayAction =
 	| { type: "apply"; changeName: string }
+	| { type: "verify"; changeName: string }
 	| { type: "explore"; changeName: string }
 	| { type: "archive"; changeName: string }
 	| { type: "propose" }

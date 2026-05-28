@@ -28,6 +28,7 @@ export class OpenSpecOverlay {
 	private theme: Theme;
 	private onAction: (action: OverlayAction) => void;
 	private error: string | null;
+	private hasVerify: boolean;
 
 	// Render cache
 	private cachedWidth?: number;
@@ -40,6 +41,7 @@ export class OpenSpecOverlay {
 		theme: Theme,
 		onAction: (action: OverlayAction) => void,
 		error: string | null,
+		hasVerify: boolean,
 	) {
 		this.changes = changes;
 		this.details = details;
@@ -47,6 +49,7 @@ export class OpenSpecOverlay {
 		this.theme = theme;
 		this.onAction = onAction;
 		this.error = error;
+		this.hasVerify = hasVerify;
 		this.selectedIndex = changes.length > 1 ? 0 : 0; // Pre-select first change
 	}
 
@@ -65,6 +68,8 @@ export class OpenSpecOverlay {
 			}
 		} else if (data === "a" && this.changes.length > 0) {
 			this.onAction({ type: "apply", changeName: this.changes[this.selectedIndex]!.name });
+		} else if (data === "v" && this.hasVerify && this.changes.length > 0) {
+			this.onAction({ type: "verify", changeName: this.changes[this.selectedIndex]!.name });
 		} else if (data === "e" && this.changes.length > 0) {
 			this.onAction({ type: "explore", changeName: this.changes[this.selectedIndex]!.name });
 		} else if (data === "c" && this.changes.length > 0) {
@@ -247,10 +252,17 @@ export class OpenSpecOverlay {
 
 		if (hasChanges) {
 			parts.push(th.fg("accent", "a") + th.fg("dim", " apply"));
+			if (this.hasVerify) {
+				parts.push(th.fg("accent", "v") + th.fg("dim", " verify"));
+			}
 			parts.push(th.fg("accent", "e") + th.fg("dim", " explore"));
 			parts.push(th.fg("accent", "c") + th.fg("dim", " archive"));
 		} else {
-			parts.push(th.fg("muted", "a apply · e explore · c archive"));
+			const mutedActions = ["a apply", "e explore", "c archive"];
+			if (this.hasVerify) {
+				mutedActions.splice(1, 0, "v verify");
+			}
+			parts.push(th.fg("muted", mutedActions.join(" · ")));
 		}
 		parts.push(th.fg("accent", "p") + th.fg("dim", " propose new"));
 		parts.push(th.fg("accent", "esc") + th.fg("dim", " cancel"));
