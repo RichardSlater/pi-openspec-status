@@ -6,14 +6,14 @@
  * Create a debounced version of a function.
  * The debounced function is called after `delay` ms of inactivity.
  */
-export function debounce<T extends (...args: unknown[]) => void>(
-	fn: T,
+export function debounce<Args extends unknown[]>(
+	fn: (...args: Args) => void,
 	delay: number,
-): { (...args: Parameters<T>): void; cancel(): void; flush(): void } {
+): { (...args: Args): void; cancel(): void; flush(): void } {
 	let timer: ReturnType<typeof setTimeout> | null = null;
-	let lastArgs: Parameters<T> | null = null;
+	let lastArgs: Args | null = null;
 
-	const debounced = (...args: Parameters<T>) => {
+	const debounced = (...args: Args) => {
 		lastArgs = args;
 		if (timer) clearTimeout(timer);
 		timer = setTimeout(() => {

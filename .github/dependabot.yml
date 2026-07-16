@@ -1,0 +1,36 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 5
+    # Applies only to routine version updates. Security updates remain separate
+    # for independent triage and are not delayed by Dependabot cooldowns.
+    groups:
+      npm-version-updates:
+        applies-to: "version-updates"
+        patterns:
+          - "*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 5
+    # Actions version updates are grouped; security updates remain individually triageable.
+    groups:
+      actions-version-updates:
+        applies-to: "version-updates"
+        patterns:
+          - "*"

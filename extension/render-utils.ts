@@ -7,6 +7,7 @@
 
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import type { ChangeSummary, ChangeDetail } from "./types.ts";
+import { sanitizeDisplayText } from "./validation.ts";
 
 /** Max progress bar width in characters */
 export const MAX_PROGRESS_BAR_WIDTH = 20;
@@ -62,7 +63,8 @@ export function progressBar(theme: Theme, completed: number, total: number): str
 export function renderArtifactPart(theme: Theme, detail: ChangeDetail, useFullNames: boolean): string {
 	return detail.artifacts
 		.map((a) => {
-			const label = useFullNames ? a.id : a.id.charAt(0).toUpperCase();
+			const artifactId = sanitizeDisplayText(a.id);
+			const label = useFullNames ? artifactId : artifactId.charAt(0).toUpperCase();
 			const icon = artifactIcon(theme, a.status as "done" | "ready" | "blocked");
 			return `${label} ${icon}`;
 		})

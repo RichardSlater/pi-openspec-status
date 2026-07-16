@@ -11,6 +11,7 @@ import { Key } from "@earendil-works/pi-tui";
 import type { ChangeSummary, ChangeDetail, OverlayAction } from "./types.ts";
 import { fetchActiveChanges } from "./openspec.ts";
 import { LoadingOverlay, OpenSpecOverlay } from "./overlay.ts";
+import { editorCommandForAction } from "./actions.ts";
 
 /**
  * Register the ctrl+alt+o shortcut that opens the interactive overlay.
@@ -75,28 +76,13 @@ export function registerInteractionShortcut(pi: ExtensionAPI): void {
 				{ overlay: true },
 			);
 
-			// Handle the action result
+			// Only validated change identifiers may be inserted into the editor.
 			if (!actionResult) return;
-
-			switch (actionResult.type) {
-				case "apply":
-					ctx.ui.setEditorText(`/opsx-apply ${actionResult.changeName}`);
-					break;
-				case "explore":
-					ctx.ui.setEditorText(`/opsx-explore ${actionResult.changeName}`);
-					break;
-				case "archive":
-					ctx.ui.setEditorText(`/opsx-archive ${actionResult.changeName}`);
-					break;
-				case "verify":
-					ctx.ui.setEditorText(`/opsx-verify ${actionResult.changeName}`);
-					break;
-				case "propose":
-					ctx.ui.setEditorText("/opsx-propose ");
-					break;
-				case "cancel":
-					// No editor change, just close
-					break;
+			const command = editorCommandForAction(actionResult);
+			if (command) {
+				ctx.ui.setEditorText(command);
+			} else if (actionResult.type !== "cancel") {
+				ctx.ui.notify("OpenSpec change data is invalid", "warning");
 			}
 		},
 	});

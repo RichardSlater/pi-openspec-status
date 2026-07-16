@@ -78,14 +78,10 @@ export default function (pi: ExtensionAPI) {
 		// their ctx is always fresh.
 		if (gen !== undefined && (isShutdown || sessionGeneration !== gen)) return;
 
-		// Update state
-		state = {
-			changes,
-			details,
-			taskGroups,
-			error,
-			lastRefresh: Date.now(),
-		};
+		// Invalid or failed refreshes must not replace a last known safe state.
+		state = error && state.changes.length > 0
+			? { ...state, error, lastRefresh: Date.now() }
+			: { changes, details, taskGroups, error, lastRefresh: Date.now() };
 
 		// Render and update widget
 		updateWidget(ctx);

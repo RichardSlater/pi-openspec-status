@@ -10,6 +10,7 @@
  */
 
 import type { TaskGroup } from "./types.ts";
+import { sanitizeDisplayText } from "./validation.ts";
 
 /**
  * Parse tasks.md content into an array of TaskGroup objects.
@@ -17,9 +18,9 @@ import type { TaskGroup } from "./types.ts";
  * Rules:
  * - Groups are delimited by `##`-level headings
  * - Content before the first `##` heading is skipped
- * - Within each group, lines matching `- [x]` are counted as completed,
- *   lines matching `- [ ]` as pending
- * - Other lines (text, code blocks, blank lines) are ignored
+ * - Within each group, only unindented `- [x] ` (complete) and `- [ ] `
+ *   (pending) task lines are counted
+ * - Other lines, including checkbox-like syntax in prose or code blocks, are ignored
  * - Edge cases: empty content, no `##` headings, or parse errors all
  *   return an empty array
  *
@@ -62,7 +63,7 @@ export function parseTaskGroups(content: string): TaskGroup[] {
 
 			// Extract heading name (strip the `## ` prefix)
 			const headingLine = lines[startLine]!;
-			const groupName = headingLine.replace(/^##\s+/, "").trim();
+			const groupName = sanitizeDisplayText(headingLine.replace(/^##\s+/, ""));
 
 			// Count checkboxes in this group's range
 			let completed = 0;
@@ -70,10 +71,10 @@ export function parseTaskGroups(content: string): TaskGroup[] {
 
 			for (let i = startLine + 1; i < endLine; i++) {
 				const checkLine = lines[i]!;
-				if (/^- \[x\]/i.test(checkLine)) {
+				if (/^- \[x\] /i.test(checkLine)) {
 					completed++;
 					total++;
-				} else if (/^- \[ \]/.test(checkLine)) {
+				} else if (/^- \[ \] /.test(checkLine)) {
 					total++;
 				}
 				// Ignore other content

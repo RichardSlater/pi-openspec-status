@@ -1,0 +1,49 @@
+name: Bug report
+description: Report reproducible unexpected behavior.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Do not report suspected vulnerabilities here; follow the repository security policy instead.
+  - type: input
+    id: version
+    attributes:
+      label: Package version
+      description: Which version of pi-openspec-status are you using?
+      placeholder: "0.3.0"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Provide the smallest reproducible sequence of commands or actions.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include sanitized error output or screenshots. Remove tokens and personal information.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include Node.js version, Pi version, operating system, and relevant OpenSpec version.
+    validations:
+      required: true

@@ -1,0 +1,38 @@
+name: Verify
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
+        with:
+          node-version: "24"
+          package-manager-cache: false
+
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+
+      - name: Inspect package contents
+        run: |
+          set -euo pipefail
+          npm pack --dry-run --json --ignore-scripts > pack-dry-run.json
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          const [{ files }] = JSON.parse(fs.readFileSync("pack-dry-run.json", "utf8"));
+          const allowed = /^(extension\/.+|README\.md|package\.json)$/;
+          const unexpected = files.map(({ path }) => path).filter((path) => !allowed.test(path));
+          if (unexpected.length) throw new Error(`Unexpected package files: ${unexpected.join(", ")}`);
+          NODE

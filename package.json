@@ -1,6 +1,6 @@
 {
   "name": "pi-openspec-status",
-  "version": "0.0.1",
+  "version": "0.3.0",
   "description": "Pi coding agent extension that displays OpenSpec change status — active change, artifact completion, and task progress — as a persistent TUI widget.",
   "keywords": [
     "pi-package",
@@ -18,20 +18,31 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mattoopie/pi-openspec-status.git"
+    "url": "git+https://github.com/richards-ensono/pi-openspec-status.git"
   },
   "bugs": {
-    "url": "https://github.com/mattoopie/pi-openspec-status/issues"
+    "url": "https://github.com/richards-ensono/pi-openspec-status/issues"
   },
-  "homepage": "https://github.com/mattoopie/pi-openspec-status#readme",
+  "homepage": "https://github.com/richards-ensono/pi-openspec-status#readme",
   "type": "module",
   "peerDependencies": {
-    "@earendil-works/pi-coding-agent": "*"
+    "@earendil-works/pi-coding-agent": ">=0.80.0 <1.0.0",
+    "@earendil-works/pi-tui": ">=0.80.0 <1.0.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "node --experimental-strip-types --check extension/*.ts test/*.ts",
+    "test": "node --experimental-strip-types --test test/*.test.ts"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-tui": "^0.80.0",
+    "@types/node": "^26.1.1",
+    "typescript": "^5.9.3"
   },
   "pi": {
     "extensions": [
       "./extension/index.ts"
     ],
-    "image": "https://raw.githubusercontent.com/mattoopie/pi-openspec-status/main/assets/overlay.png"
+    "image": "https://raw.githubusercontent.com/richards-ensono/pi-openspec-status/main/assets/overlay.png"
   }
 }

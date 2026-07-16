@@ -14,6 +14,7 @@ import {
 	renderArtifactPart,
 	progressBar,
 } from "./render-utils.ts";
+import { sanitizeDisplayText } from "./validation.ts";
 
 /**
  * Determine whether full artifact names can fit in the available width.
@@ -28,11 +29,11 @@ function shouldUseFullNames(
 ): boolean {
 	if (isSingleChange) {
 		const artifactStr = renderArtifactPart(theme, detail, true);
-		const line = `Artifacts: ${artifactStr}`;
+		const line = `Workflow artifacts: ${artifactStr}`;
 		return visibleWidth(line) <= availableWidth;
 	} else {
 		const statusIcon = changeStatusIcon(theme, change, detail);
-		const name = change.name;
+		const name = sanitizeDisplayText(change.name);
 		const artifactStr = renderArtifactPart(theme, detail, true);
 		const taskCounter = `${change.completedTasks}/${change.totalTasks}`;
 		const line = `${statusIcon} ${name}  ${artifactStr}  ${taskCounter}`;
@@ -54,16 +55,16 @@ export function renderSingleChange(
 
 	// Line 1: Status icon + change name + schema
 	const statusIcon = changeStatusIcon(theme, change, detail);
-	const nameLine = `${statusIcon} ${theme.fg("text", change.name)} ${theme.fg("muted", `(${detail.schemaName})`)}`;
+	const nameLine = `${statusIcon} ${theme.fg("text", sanitizeDisplayText(change.name))} ${theme.fg("muted", `(${sanitizeDisplayText(detail.schemaName)})`)}`;
 	lines.push(truncateToWidth(nameLine, availableWidth, "…"));
 
 	// Line 2: Artifact statuses (full names or initials + colored icon)
 	const artifactStr = renderArtifactPart(theme, detail, useFullNames);
-	lines.push(truncateToWidth(theme.fg("muted", "Artifacts: ") + artifactStr, availableWidth, "…"));
+	lines.push(truncateToWidth(theme.fg("muted", "Workflow artifacts: ") + artifactStr, availableWidth, "…"));
 
 	// Line 3: Task progress bar (no apply suffix)
 	const taskBar = progressBar(theme, change.completedTasks, change.totalTasks);
-	lines.push(truncateToWidth(`${theme.fg("muted", "Tasks: ")}${taskBar}`, availableWidth, "…"));
+	lines.push(truncateToWidth(`${theme.fg("muted", "OpenSpec task progress: ")}${taskBar}`, availableWidth, "…"));
 
 	return lines;
 }
@@ -88,7 +89,7 @@ export function renderMultiChange(
 
 		// Determine width for change name
 		const nameWidth = Math.floor(availableWidth * 0.2);
-		const truncatedName = truncateToWidth(change.name, nameWidth, "…");
+		const truncatedName = truncateToWidth(sanitizeDisplayText(change.name), nameWidth, "…");
 
 		// Artifact portion: use full names if width permits, initials otherwise
 		let artifactPart = "";
@@ -105,7 +106,7 @@ export function renderMultiChange(
 		if (detail && !detail.isComplete) {
 			const blockedArtifacts = detail.artifacts.filter((a) => a.status === "blocked");
 			if (blockedArtifacts.length > 0) {
-				blockedHint = ` ${theme.fg("warning", `(blocked: ${blockedArtifacts.map((a) => a.id).join(", ")})`)}`;
+				blockedHint = ` ${theme.fg("warning", `(blocked: ${blockedArtifacts.map((a) => sanitizeDisplayText(a.id)).join(", ")})`)}`;
 			}
 		}
 
@@ -127,7 +128,7 @@ export function renderNoChanges(theme: Theme): string[] {
  * Render an error state.
  */
 export function renderError(theme: Theme, message: string, availableWidth: number): string[] {
-	const line = theme.fg("warning", `⚠ ${message}`);
+	const line = theme.fg("warning", `⚠ ${sanitizeDisplayText(message)}`);
 	return [truncateToWidth(line, availableWidth, "…")];
 }
 

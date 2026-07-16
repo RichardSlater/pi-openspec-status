@@ -17,6 +17,7 @@ import {
 	renderArtifactPart,
 	progressBar,
 } from "./render-utils.ts";
+import { sanitizeDisplayText } from "./validation.ts";
 
 // ── OpenSpecOverlay Component ──────────────────────────────────────────────────
 
@@ -96,7 +97,7 @@ export class OpenSpecOverlay {
 		lines.push(this.renderTopBorder(innerW, th));
 
 		if (this.error && this.changes.length === 0) {
-			lines.push(this.renderLine(th.fg("warning", `⚠ ${this.error}`), innerW, th));
+			lines.push(this.renderLine(th.fg("warning", `⚠ ${sanitizeDisplayText(this.error)}`), innerW, th));
 		} else if (this.changes.length === 0) {
 			lines.push(this.renderLine(th.fg("muted", "No active OpenSpec changes"), innerW, th));
 			lines.push(this.renderLine("", innerW, th));
@@ -162,7 +163,7 @@ export class OpenSpecOverlay {
 		const statusIcon = changeStatusIcon(th, change, detail);
 
 		const maxNameWidth = Math.max(10, Math.floor(innerW * 0.25));
-		const truncatedName = truncateToWidth(change.name, maxNameWidth, "…");
+		const truncatedName = truncateToWidth(sanitizeDisplayText(change.name), maxNameWidth, "…");
 
 		let artifactStr = "";
 		if (detail) {
@@ -175,7 +176,7 @@ export class OpenSpecOverlay {
 		if (detail && !detail.isComplete) {
 			const blockedArtifacts = detail.artifacts.filter((a) => a.status === "blocked");
 			if (blockedArtifacts.length > 0) {
-				blockedHint = ` ${th.fg("warning", `(blocked: ${blockedArtifacts.map((a) => a.id).join(", ")})`)}`;
+				blockedHint = ` ${th.fg("warning", `(blocked: ${blockedArtifacts.map((a) => sanitizeDisplayText(a.id)).join(", ")})`)}`;
 			}
 		}
 
@@ -187,21 +188,21 @@ export class OpenSpecOverlay {
 		const lines: string[] = [];
 
 		const statusIcon = changeStatusIcon(th, change, detail);
-		const nameLine = `${statusIcon} ${th.fg("text", change.name)} ${th.fg("muted", `(${detail.schemaName})`)}`;
+		const nameLine = `${statusIcon} ${th.fg("text", sanitizeDisplayText(change.name))} ${th.fg("muted", `(${sanitizeDisplayText(detail.schemaName)})`)}`;
 		lines.push(this.renderLine(nameLine, innerW, th));
 
 		const artifactStr = renderArtifactPart(th, detail, true);
-		lines.push(this.renderLine(th.fg("muted", "Artifacts: ") + artifactStr, innerW, th));
+		lines.push(this.renderLine(th.fg("muted", "Workflow artifacts: ") + artifactStr, innerW, th));
 
 		// Check for task group data; if present and non-empty, render groups
 		const groups = this.taskGroups.get(change.name);
 		if (groups && groups.length > 0) {
-			lines.push(this.renderLine(th.fg("muted", "Tasks:"), innerW, th));
+			lines.push(this.renderLine(th.fg("muted", "OpenSpec task progress (recognized syntax):"), innerW, th));
 			lines.push(...this.renderTaskGroups(th, groups, innerW));
 		} else {
 			// Flat fallback: progress bar with no apply suffix
 			const taskBar = progressBar(th, change.completedTasks, change.totalTasks);
-			lines.push(this.renderLine(th.fg("muted", "Tasks: ") + taskBar, innerW, th));
+			lines.push(this.renderLine(th.fg("muted", "OpenSpec task progress: ") + taskBar, innerW, th));
 		}
 
 		return lines;
@@ -239,7 +240,7 @@ export class OpenSpecOverlay {
 			}
 
 			// Truncate group name to fit the available width
-			const line = `  ${icon} ${group.name}: ${counter}`;
+			const line = `  ${icon} ${sanitizeDisplayText(group.name)}: ${counter}`;
 			lines.push(this.renderLine(line, innerW, th));
 		}
 

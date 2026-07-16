@@ -1,278 +1,156 @@
-/**
- * Data layer for OpenSpec CLI interaction.
- * Provides CLI execution wrapper, list/status fetching, and error handling.
- */
+/** Data layer for OpenSpec CLI interaction. All CLI data is validated here. */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { ChangeSummary, ChangeDetail, TaskGroup } from "./types.ts";
 import { parseTaskGroups } from "./tasks-parser.ts";
+import {
+	isValidChangeName,
+	safeError,
+	validateChangeDetail,
+	validateChangeSummary,
+} from "./validation.ts";
 
-/**
- * Result of a CLI availability check.
- */
 export interface CliCheckResult {
 	available: boolean;
 	reason?: string;
 }
 
-// ── Directory resolution ──────────────────────────────────────────────
+let _openSpecDir: string | null | undefined;
 
-/**
- * Module-level cache for the resolved OpenSpec project root directory.
- * Null means "not an OpenSpec project" — no `openspec/changes` found.
- * `undefined` means not yet resolved.
- */
-let _openSpecDir: string | null | undefined = undefined;
-
-/**
- * Resolve the OpenSpec project root directory by checking:
- * 1. Current working directory (fast path)
- * 2. Git repository root (fallback)
- *
- * Returns the absolute path to the project root (containing `openspec/changes/`)
- * or null if neither location has `openspec/changes/`.
- *
- * Error handling:
- * - If `git rev-parse` fails (not installed, not a repo, timeout): returns null
- * - If git succeeds but git root lacks `openspec/changes/`: returns null
- */
+/** Resolve the project root containing `openspec/changes`, including git fallback. */
 export async function resolveOpenSpecDir(pi: ExtensionAPI): Promise<string | null> {
-	// Step 1: Check current working directory
 	try {
 		const cwdResult = await pi.exec("test", ["-d", "openspec/changes"], { timeout: 5000 });
-		if (cwdResult.code === 0) {
-			return process.cwd();
-		}
-	} catch {
-		// test command failed (unlikely), continue to git fallback
-	}
-
-	// Step 2: Git root fallback
+		if (cwdResult.code === 0) return process.cwd();
+	} catch { /* fall through */ }
 	try {
 		const gitResult = await pi.exec("git", ["rev-parse", "--show-toplevel"], { timeout: 5000 });
-		if (gitResult.code === 0) {
-			const gitRoot = gitResult.stdout?.trim();
-			if (gitRoot) {
-				// Validate that openspec/changes exists at the git root
-				const gitCheckResult = await pi.exec("test", ["-d", `${gitRoot}/openspec/changes`], { timeout: 5000 });
-				if (gitCheckResult.code === 0) {
-					return gitRoot;
-				}
-			}
+		const gitRoot = gitResult.code === 0 ? gitResult.stdout?.trim() : undefined;
+		if (gitRoot) {
+			const rootCheck = await pi.exec("test", ["-d", `${gitRoot}/openspec/changes`], { timeout: 5000 });
+			if (rootCheck.code === 0) return gitRoot;
 		}
-	} catch {
-		// Git command failed (not installed, not a repo, timeout, etc.)
-		// Fall through to return null
-	}
-
-	// No valid project root found
+	} catch { /* no OpenSpec root */ }
 	return null;
 }
 
-/**
- * Get the cached OpenSpec project root directory.
- * On first call, resolves lazily and caches the result.
- * Subsequent calls return the cached value immediately (sync, no I/O).
- *
- * Returns the absolute path to the project root (containing `openspec/changes/`)
- * or null if no OpenSpec project is found.
- */
 export async function getOpenSpecDir(pi: ExtensionAPI): Promise<string | null> {
-	if (_openSpecDir === undefined) {
-		_openSpecDir = await resolveOpenSpecDir(pi);
-	}
+	if (_openSpecDir === undefined) _openSpecDir = await resolveOpenSpecDir(pi);
 	return _openSpecDir;
 }
 
-/**
- * Reset the cached directory, forcing re-resolution on next call.
- * Useful for testing or when the session environment changes.
- */
 export function resetOpenSpecDir(): void {
 	_openSpecDir = undefined;
 }
 
-// ── CLI check ─────────────────────────────────────────────────────────
-
-/**
- * Check if the `openspec` CLI is available on PATH.
- */
 export async function checkCliAvailable(pi: ExtensionAPI): Promise<CliCheckResult> {
 	try {
-		const result = await pi.exec("openspec", ["--help"], {
-			timeout: 5000,
-		});
-		if (result.code !== 0) {
-			return { available: false, reason: result.stderr?.trim() || "CLI returned non-zero exit code" };
-		}
-		return { available: true };
-	} catch (err) {
-		return { available: false, reason: err instanceof Error ? err.message : String(err) };
+		const result = await pi.exec("openspec", ["--help"], { timeout: 5000 });
+		return result.code === 0
+			? { available: true }
+			: { available: false, reason: "OpenSpec CLI returned a non-zero exit code" };
+	} catch {
+		return { available: false, reason: "OpenSpec CLI could not be executed" };
 	}
 }
 
-// ── CLI execution ─────────────────────────────────────────────────────
-
-/**
- * Execute an openspec CLI command and return parsed JSON.
- * Returns null on failure.
- *
- * @param cwd - Optional working directory. If provided, the CLI runs from this directory.
- */
-async function execOpenSpecJson<T>(
+async function execOpenSpecJson(
 	pi: ExtensionAPI,
 	args: string[],
 	errorLabel: string,
 	cwd?: string,
-): Promise<{ data: T | null; error: string | null }> {
+): Promise<{ data: unknown | null; error: string | null }> {
 	try {
-		const result = await pi.exec("openspec", args, {
-			timeout: 10000,
-			...(cwd ? { cwd } : {}),
-		});
-
-		if (result.code !== 0) {
-			const errMsg = result.stderr?.trim() || `exit code ${result.code}`;
-			return { data: null, error: `${errorLabel}: ${errMsg}` };
-		}
-
-		// stdout may contain ANSI or extra output; try to find JSON payload
+		const result = await pi.exec("openspec", args, { timeout: 10000, ...(cwd ? { cwd } : {}) });
+		if (result.code !== 0) return { data: null, error: `${errorLabel}: command failed` };
 		const stdout = result.stdout?.trim() || "";
-		// Try parsing entire output as JSON first
 		try {
-			const parsed = JSON.parse(stdout) as T;
-			return { data: parsed, error: null };
+			return { data: JSON.parse(stdout), error: null };
 		} catch {
-			// If not pure JSON, try to extract JSON from the output
-			const jsonMatch = stdout.match(/\{[\s\S]*\}/);
-			if (jsonMatch) {
-				try {
-					const parsed = JSON.parse(jsonMatch[0]) as T;
-					return { data: parsed, error: null };
-				} catch {
-					// fall through
-				}
-			}
-			return { data: null, error: `${errorLabel}: could not parse CLI output` };
+			return { data: null, error: `${errorLabel}: invalid JSON response` };
 		}
-	} catch (err) {
-		return { data: null, error: `${errorLabel}: ${err instanceof Error ? err.message : String(err)}` };
+	} catch {
+		return { data: null, error: `${errorLabel}: command failed` };
 	}
 }
 
-/**
- * Fetch all active (non-archived) changes via `openspec list --json`.
- * Uses the resolved OpenSpec project directory (with git root fallback)
- * so this works from any subdirectory of a git repository.
- */
-export async function listChanges(
-	pi: ExtensionAPI,
-): Promise<{ changes: ChangeSummary[]; error: string | null }> {
+/** Fetch and validate active changes; malformed payloads are rejected wholesale. */
+export async function listChanges(pi: ExtensionAPI): Promise<{ changes: ChangeSummary[]; error: string | null }> {
 	const dir = await getOpenSpecDir(pi);
-	const result = await execOpenSpecJson<{ changes: ChangeSummary[] }>(
-		pi,
-		["list", "--json"],
-		"openspec list",
-		dir ?? undefined,
-	);
-
-	if (result.error) {
-		// Check if this is a "not an OpenSpec project" error
-		if (result.error.includes("not found") || result.error.includes("no such file")) {
-			return { changes: [], error: null }; // Not an OpenSpec project - no error
-		}
-		return { changes: [], error: result.error };
+	const result = await execOpenSpecJson(pi, ["list", "--json"], "OpenSpec list", dir ?? undefined);
+	if (result.error) return { changes: [], error: safeError(result.error) };
+	if (!result.data || typeof result.data !== "object" || !Array.isArray((result.data as { changes?: unknown }).changes)) {
+		return { changes: [], error: "OpenSpec returned invalid change data" };
 	}
-
-	return { changes: result.data?.changes ?? [], error: null };
+	const changes = (result.data as { changes: unknown[] }).changes.map(validateChangeSummary);
+	if (changes.some((change) => change === null)) {
+		return { changes: [], error: "OpenSpec returned invalid change data" };
+	}
+	return { changes: changes as ChangeSummary[], error: null };
 }
 
-/**
- * Fetch detailed status for a specific change via `openspec status --json`.
- * Uses the resolved OpenSpec project directory (with git root fallback)
- * so this works from any subdirectory of a git repository.
- */
+/** Fetch and validate one change status. Invalid names never reach the CLI. */
 export async function getChangeStatus(
 	pi: ExtensionAPI,
 	name: string,
 ): Promise<{ detail: ChangeDetail | null; error: string | null }> {
+	if (!isValidChangeName(name)) return { detail: null, error: "OpenSpec returned an invalid change name" };
 	const dir = await getOpenSpecDir(pi);
-	const result = await execOpenSpecJson<ChangeDetail>(
-		pi,
-		["status", "--json", "--change", name],
-		`openspec status (${name})`,
-		dir ?? undefined,
-	);
-
-	if (result.error) {
-		return { detail: null, error: result.error };
-	}
-
-	return { detail: result.data, error: null };
+	const result = await execOpenSpecJson(pi, ["status", "--json", "--change", name], "OpenSpec status", dir ?? undefined);
+	if (result.error) return { detail: null, error: safeError(result.error) };
+	const detail = validateChangeDetail(result.data, name);
+	return detail
+		? { detail, error: null }
+		: { detail: null, error: "OpenSpec returned invalid status data" };
 }
 
 /**
- * Fetch task group data from a change's tasks.md file.
- * Reads the file from the change directory, parses it, and returns
- * the extracted task groups. Returns an empty array on any failure
- * (file missing, read error, parse error).
- *
- * @param pi — ExtensionAPI for executing CLI commands
- * @param changeName — Name of the change (used to locate change dir)
- * @returns Parsed TaskGroup array (empty on any failure)
+ * Read tasks only from the resolved OpenSpec root and a validated, single-component
+ * change identifier. No CLI-provided path is ever accepted for filesystem access.
  */
-export async function fetchTaskGroups(
-	pi: ExtensionAPI,
-	changeName: string,
-): Promise<TaskGroup[]> {
+export async function fetchTaskGroups(pi: ExtensionAPI, changeName: string): Promise<TaskGroup[]> {
+	if (!isValidChangeName(changeName)) return [];
 	try {
 		const dir = await getOpenSpecDir(pi);
-		const filePath = `openspec/changes/${changeName}/tasks.md`;
-		const result = await pi.exec("cat", [filePath], { timeout: 5000, cwd: dir ?? undefined });
-
-		if (result.code !== 0) return [];
-		if (!result.stdout?.trim()) return [];
-
-		return parseTaskGroups(result.stdout);
+		if (!dir) return [];
+		const changePath = `openspec/changes/${changeName}`;
+		const taskPath = `${changePath}/tasks.md`;
+		const [rootResult, changeResult, taskResult] = await Promise.all([
+			pi.exec("realpath", ["--", "."], { timeout: 5000, cwd: dir }),
+			pi.exec("realpath", ["--", changePath], { timeout: 5000, cwd: dir }),
+			pi.exec("realpath", ["--", taskPath], { timeout: 5000, cwd: dir }),
+		]);
+		if (rootResult.code !== 0 || changeResult.code !== 0 || taskResult.code !== 0) return [];
+		const root = rootResult.stdout?.trim();
+		const changeDir = changeResult.stdout?.trim();
+		const tasksFile = taskResult.stdout?.trim();
+		const changesRoot = root ? `${root}/openspec/changes/` : "";
+		if (!root || !changeDir || !tasksFile || !changeDir.startsWith(changesRoot) || tasksFile !== `${changeDir}/tasks.md`) return [];
+		const result = await pi.exec("cat", ["--", taskPath], { timeout: 5000, cwd: dir });
+		return result.code === 0 && result.stdout?.trim() ? parseTaskGroups(result.stdout) : [];
 	} catch {
 		return [];
 	}
 }
 
-/**
- * Fetch all active changes with their detailed status and task group data.
- */
-export async function fetchActiveChanges(
-	pi: ExtensionAPI,
-): Promise<{
+/** Fetch all active changes and their only validated status/task data. */
+export async function fetchActiveChanges(pi: ExtensionAPI): Promise<{
 	changes: ChangeSummary[];
 	details: Map<string, ChangeDetail>;
 	taskGroups: Map<string, TaskGroup[]>;
 	error: string | null;
 }> {
-	// First, get the list of changes
 	const { changes, error: listError } = await listChanges(pi);
-	if (listError) {
-		return { changes: [], details: new Map(), taskGroups: new Map(), error: listError };
-	}
-
-	// Fetch details for each change
+	if (listError) return { changes: [], details: new Map(), taskGroups: new Map(), error: listError };
 	const details = new Map<string, ChangeDetail>();
 	const taskGroups = new Map<string, TaskGroup[]>();
-	let fetchError: string | null = null;
-
 	for (const change of changes) {
 		const { detail, error } = await getChangeStatus(pi, change.name);
-		if (detail) {
-			details.set(change.name, detail);
-		} else if (error) {
-			fetchError = error;
+		if (error || !detail) {
+			return { changes: [], details: new Map(), taskGroups: new Map(), error: error ?? "OpenSpec returned invalid status data" };
 		}
-
-		// Fetch task groups for each change (fails silently to empty array)
-		const groups = await fetchTaskGroups(pi, change.name);
-		taskGroups.set(change.name, groups);
+		details.set(change.name, detail);
+		taskGroups.set(change.name, await fetchTaskGroups(pi, change.name));
 	}
-
-	return { changes, details, taskGroups, error: fetchError };
+	return { changes, details, taskGroups, error: null };
 }
