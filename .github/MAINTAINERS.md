@@ -20,3 +20,16 @@ Keep GitHub Actions dependency updates enabled in Dependabot. Review every propo
 ## Periodic review
 
 Review the Scorecard results, CodeQL findings, Dependabot activity, and branch rules at least quarterly. Update this document only to describe settings that are actually available and enabled for the repository.
+
+## Scorecard limitations for a single-maintainer project
+
+The branch safeguards documented above—pull requests, the required **Verify** status check, CODEOWNERS review where available, and prevention of force pushes and branch deletion—remain important protections. They do not, by themselves, provide evidence of independent review when the project has only one active maintainer. Do not claim that version-controlled configuration resolves Scorecard findings for independent approval history or stricter branch-review controls.
+
+If sufficient independent maintainers become available, reassess whether to require independent approvals, enforce CODEOWNERS review, dismiss stale approvals, and require approval after the last push before changing repository rules. Do not enable nominal requirements that the lone maintainer would routinely bypass.
+
+## Scorecard reassessment record
+
+- **Owner:** richards-ensono
+- **Post-90-day Maintained review date:** 2026-07-30
+- At that review, assess the repository-age **Maintained** Scorecard result and record whether it is now eligible to resolve.
+- OpenSSF Best Practices enrollment is optional. The owner will decide whether to create and staff a separate governance initiative when independent maintenance capacity is available.

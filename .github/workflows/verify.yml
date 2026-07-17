@@ -32,7 +32,7 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from "node:fs";
           const [{ files }] = JSON.parse(fs.readFileSync("pack-dry-run.json", "utf8"));
-          const allowed = /^(extension\/.+|README\.md|package\.json)$/;
+          const allowed = /^(extension\/.+|LICENSE|README\.md|package\.json)$/;
           const unexpected = files.map(({ path }) => path).filter((path) => !allowed.test(path));
           if (unexpected.length) throw new Error(`Unexpected package files: ${unexpected.join(", ")}`);
           NODE
